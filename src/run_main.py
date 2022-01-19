@@ -38,14 +38,24 @@ def runOtherPost( input_dir, output_dir, run_json ):
 
     If you are not running any other commands or pre-processing, then leave this function blank.
     """
+    run_json['postrun_commands'] = []
+    
     # run samtools sort
     samtools_sort_cmd = ['samtools sort -o {} {}'.format(run_json['local_output_file'], str(run_json['local_output_file']).replace('.bam','.sam'))]
     subprocess.call(samtools_sort_cmd, shell=True)
+    run_json['postrun_commands'].append(samtools_sort_cmd[0])
     
     # run samtools index
     samtools_index_cmd = ['samtools index {}'.format(run_json['local_output_file'])]
     subprocess.call(samtools_index_cmd, shell=True)
-    return
+    run_json['postrun_commands'].append(samtools_index_cmd[0])
+
+    # can remove SAM file
+    rm_sam_cmd = ['rm {}'.format(str(run_json['local_output_file']).replace('.bam','.sam'))]
+    subprocess.call(rm_sam_cmd, shell=True)
+    run_json['postrun_commands'].append(rm_sam_cmd[0])
+    
+    return run_json
 
 
 def runMain():
@@ -63,7 +73,7 @@ def runMain():
     module_utils.runProgram( run_json['program_arguments'], str(run_json['local_output_file']).replace('.bam','.sam') )
     
     # do any post-processing
-    runOtherPost( run_json['local_input_dir'], run_json['local_output_dir'], run_json )
+    run_json = runOtherPost( run_json['local_input_dir'], run_json['local_output_dir'], run_json )
     
     # create run log that includes program run duration
     run_end = datetime.now()
