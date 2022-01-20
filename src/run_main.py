@@ -39,7 +39,7 @@ def runOtherPost( input_dir, output_dir, run_json ):
     If you are not running any other commands or pre-processing, then leave this function blank.
     """
     def writeOtherBAM(run_json, bam_stats_file, samflags_filter_string, read_type, index_reads=False):
-        bam_outfile = run_json['local_output_file'].replace('.bam','.{}.bam'.format(read_type)))
+        bam_outfile = run_json['local_output_file'].replace('.bam','.{}.bam'.format(read_type))
         other_bam_cmd = ['samtools view -h -b -o {} {} {}'.format(bam_outfile, samflags_filter_string, run_json['local_output_file'])]
         subprocess.call(other_bam_cmd, shell=True)
         run_json['postrun_commands'].append(other_bam_cmd[0])
@@ -79,7 +79,7 @@ def runOtherPost( input_dir, output_dir, run_json ):
     bam_stats_file = open(str(run_json['local_output_file']).replace('.bam','.alignment_stats.csv'),'w')
     bam_stats_file.write('read_type,count\n')
     
-    p1 = subprocess.Popen(['samtools view -b -F 256 -F 2048 {}'.format(str(run_json['local_output_file']))], shell=True, stdout=subprocess.PIPE)
+    p1 = subprocess.Popen(['samtools view -F 256 -F 2048 {}'.format(str(run_json['local_output_file']))], shell=True, stdout=subprocess.PIPE)
     p2 = subprocess.Popen(['wc -l'], shell=True, stdin=p1.stdout, stdout=subprocess.PIPE)
     num_total_reads = str(p2.communicate()[0].decode('utf-8')).lstrip(' \t').rstrip(' \t\n')
     bam_stats_file.write('total,{}\n'.format(num_total_reads))
@@ -93,7 +93,7 @@ def runOtherPost( input_dir, output_dir, run_json ):
             run_json = writeOtherBAM(run_json, bam_stats_file, '-F 0x4', 'mapped', True)
             # create uniquely mapped BAM file - no unmapped, secondary, or supplementary alignments - index also
             # see - https://www.biostars.org/p/138116/            
-            run_json = writeOtherBAM(run_json, bam_stats_file, '-F 904', 'uniquely_mapped', True)
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-F 0x4 -F 256 -F 2048', 'uniquely_mapped', True)
         
         if 'paired' in other_bams:
             run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1', 'paired')            
