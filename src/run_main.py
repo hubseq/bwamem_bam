@@ -38,6 +38,26 @@ def runOtherPost( input_dir, output_dir, run_json ):
 
     If you are not running any other commands or pre-processing, then leave this function blank.
     """
+    def writeOtherBAM(run_json, bam_stats_file, samflags_filter_string, read_type, index_reads=False):
+        bam_outfile = run_json['local_output_file'].replace('.bam','.{}.bam'.format(read_type)))
+        other_bam_cmd = ['samtools view -h -b -o {} {} {}'.format(bam_outfile, samflags_filter_string, run_json['local_output_file'])]
+        subprocess.call(other_bam_cmd, shell=True)
+        run_json['postrun_commands'].append(other_bam_cmd[0])
+        
+        # write read statistics
+        p1 = subprocess.Popen(['samtools view {}'.format(bam_outfile)], shell=True, stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(['wc -l'], shell=True, stdin=p1.stdout, stdout=subprocess.PIPE)
+        num_reads = str(p2.communicate()[0].decode('utf-8')).lstrip(' \t').rstrip(' \t\n')
+        bam_stats_file.write('{},{}\n'.format(read_type, num_reads))
+        
+        if index_reads == True:
+            samtools_index_cmd = ['samtools index {}'.format(bam_outfile)]
+            subprocess.call(samtools_index_cmd, shell=True)
+            run_json['postrun_commands'].append(samtools_index_cmd[0])
+        
+        return run_json
+
+    
     run_json['postrun_commands'] = []
     
     # run samtools sort
@@ -55,87 +75,61 @@ def runOtherPost( input_dir, output_dir, run_json ):
     subprocess.call(rm_sam_cmd, shell=True)
     run_json['postrun_commands'].append(rm_sam_cmd[0])
 
+    # output basic read mapping statistics (samtools flagstat just counts lines without considering multimapping / supplemental are the same read)
+    bam_stats_file = open(str(run_json['local_output_file']).replace('.bam','.alignment_stats.csv'),'w')
+    bam_stats_file.write('read_type,count\n')
+    
+    p1 = subprocess.Popen(['samtools view -b -F 256 -F 2048 {}'.format(str(run_json['local_output_file']))], shell=True, stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(['wc -l'], shell=True, stdin=p1.stdout, stdout=subprocess.PIPE)
+    num_total_reads = str(p2.communicate()[0].decode('utf-8')).lstrip(' \t').rstrip(' \t\n')
+    bam_stats_file.write('total,{}\n'.format(num_total_reads))
+    
     # create any other BAM files specified in options
     # choices: mapped,unmapped, paired,properly_paired,paired_and_mapped,secondary,supplementary,duplicates,singleton,chimeric,R1,R2
     if 'options' in run_json['module_instance_json'] and run_json['module_instance_json']['options'] != '':
         other_bams = run_json['module_instance_json']['options'].split(',')
         if 'mapped' in other_bams:
-            # mapped BAM file - may include secondary (multimap) and supplementary alignments
-            other_bam_cmd = ['samtools view -h -b -o {} -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.mapped.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
-            
-            # create uniquely mapped BAM file - no unmapped, secondary, or supplementary alignments
-            # see - https://www.biostars.org/p/138116/
-            other_bam_cmd = ['samtools view -h -b -o {} -F 0x904 {}'.format(run_json['local_output_file'].replace('.bam','.uniquely_mapped.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
-
-            # index mapped BAM files
-            samtools_index_cmd = ['samtools index {}'.format(run_json['local_output_file'].replace('.bam','.mapped.bam'))]
-            subprocess.call(samtools_index_cmd, shell=True)
-            run_json['postrun_commands'].append(samtools_index_cmd[0])
-
-            samtools_index_cmd = ['samtools index {}'.format(run_json['local_output_file'].replace('.bam','.uniquely_mapped.bam'))]
-            subprocess.call(samtools_index_cmd, shell=True)
-            run_json['postrun_commands'].append(samtools_index_cmd[0])
-            
+            # mapped BAM file - may include secondary (multimap) and supplementary alignments - index also
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-F 0x4', 'mapped', True)
+            # create uniquely mapped BAM file - no unmapped, secondary, or supplementary alignments - index also
+            # see - https://www.biostars.org/p/138116/            
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-F 904', 'uniquely_mapped', True)
+        
         if 'paired' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 {}'.format(run_json['local_output_file'].replace('.bam','.paired.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1', 'paired')            
             
         if 'properly_paired' in other_bams or 'properly-paired' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x2 -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.properly_paired.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
-            
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1 -f 0x2 -F 0x4', 'properly_paired')
+        
         if 'mapped_and_paired' in other_bams or 'paired_and_mapped' in other_bams \
            or 'mapped-and-paired' in other_bams or 'paired-and-mapped' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.mapped_and_paired.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1 -F 0x4', 'mapped_and_paired')                        
             
         if 'secondary' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x100 {}'.format(run_json['local_output_file'].replace('.bam','.secondary.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x100', 'secondary')            
             
         if 'supplementary' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x800 {}'.format(run_json['local_output_file'].replace('.bam','.supplementary.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x800', 'supplementary')
             
         if 'duplicates' in other_bams or 'duplicate' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x400 {}'.format(run_json['local_output_file'].replace('.bam','.duplicates.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x400', 'duplicates')
             
         if 'singletons' in other_bams or 'singleton' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x8 -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.singletons.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1 -f 0x8 -F 0x4', 'singletons')
             
         if 'chimeric' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -F 0x4 -F 0x8 {}'.format(run_json['local_output_file'].replace('.bam','.chimeric.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1 -F 0x4 -F 0x8', 'chimeric')
             
         if 'R1' in other_bams or 'read1' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x40 {}'.format(run_json['local_output_file'].replace('.bam','.R1.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1 -f 0x40', 'R1')
             
         if 'R2' in other_bams or 'read2' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x80 {}'.format(run_json['local_output_file'].replace('.bam','.R2.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])
-            
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x1 -f 0x80', 'R2')
+        
         if 'unmapped' in other_bams:
-            other_bam_cmd = ['samtools view -h -b -o {} -f 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.unmapped.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)
-            run_json['postrun_commands'].append(other_bam_cmd[0])            
+            run_json = writeOtherBAM(run_json, bam_stats_file, '-f 0x4', 'unmapped')
     
+    bam_stats_file.close()
     return run_json
 
 
