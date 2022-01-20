@@ -62,40 +62,63 @@ def runOtherPost( input_dir, output_dir, run_json ):
         if 'mapped' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.mapped.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'paired' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 {}'.format(run_json['local_output_file'].replace('.bam','.paired.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'properly_paired' in other_bams or 'properly-paired' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x2 -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.properly_paired.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'mapped_and_paired' in other_bams or 'paired_and_mapped' in other_bams \
            or 'mapped-and-paired' in other_bams or 'paired-and-mapped' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.mapped_and_paired.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'secondary' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x100 {}'.format(run_json['local_output_file'].replace('.bam','.secondary.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'supplementary' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x800 {}'.format(run_json['local_output_file'].replace('.bam','.supplementary.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'duplicates' in other_bams or 'duplicate' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x400 {}'.format(run_json['local_output_file'].replace('.bam','.duplicates.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'singletons' in other_bams or 'singleton' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x8 -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.singletons.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'chimeric' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -F 0x4 -F 0x8 {}'.format(run_json['local_output_file'].replace('.bam','.chimeric.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'R1' in other_bams or 'read1' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x40 {}'.format(run_json['local_output_file'].replace('.bam','.R1.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'R2' in other_bams or 'read2' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 -f 0x80 {}'.format(run_json['local_output_file'].replace('.bam','.R2.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+            
         if 'unmapped' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.unmapped.bam'), run_json['local_output_file'])]
-            subprocess.call(other_bam_cmd, shell=True)            
+            subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])            
     
     return run_json
 
