@@ -60,10 +60,17 @@ def runOtherPost( input_dir, output_dir, run_json ):
     if 'options' in run_json['module_instance_json'] and run_json['module_instance_json']['options'] != '':
         other_bams = run_json['module_instance_json']['options'].split(',')
         if 'mapped' in other_bams:
+            # mapped BAM file - may include secondary (multimap) and supplementary alignments
             other_bam_cmd = ['samtools view -h -b -o {} -F 0x4 {}'.format(run_json['local_output_file'].replace('.bam','.mapped.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
             run_json['postrun_commands'].append(other_bam_cmd[0])
-            
+
+            # create uniquely mapped BAM file - no unmapped, secondary, or supplementary alignments
+            # see - https://www.biostars.org/p/138116/
+            other_bam_cmd = ['samtools view -h -b -o {} -F 0x904 {}'.format(run_json['local_output_file'].replace('.bam','.uniquely_mapped.bam'), run_json['local_output_file'])]
+            subprocess.call(other_bam_cmd, shell=True)
+            run_json['postrun_commands'].append(other_bam_cmd[0])
+    
         if 'paired' in other_bams:
             other_bam_cmd = ['samtools view -h -b -o {} -f 0x1 {}'.format(run_json['local_output_file'].replace('.bam','.paired.bam'), run_json['local_output_file'])]
             subprocess.call(other_bam_cmd, shell=True)
